@@ -8,11 +8,18 @@ namespace Moriyama.AzureSearch.Umbraco.Application.Interfaces
         int Id { get; set; }
 
         string Name { get; set; }
-        
+        string Key { get; set; }
         bool Published { get; set; }
+        string Url { get; set; }
+
+        bool IsContent { get; set; }
+        bool IsMedia { get; set; }
+        bool IsMember { get; set; }
 
         int SortOrder { get; set; }
         int Level { get; set; }
+
+        string[] Path { get; set; }
 
         int ParentId { get; set; }
 

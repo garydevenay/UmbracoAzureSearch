@@ -7,11 +7,16 @@ namespace Moriyama.AzureSearch.Umbraco.Application.Models
     {
         public int Id { get; set; }
 
+        public string Key { get; set; }
+
+        public string Url { get; set; }
+
         public bool IsContent { get; set; }
         public bool IsMedia { get; set; }
+        public bool IsMember { get; set; }
+
         public string[] Path { get; set; }
 
         public IDictionary<string, object> Properties { get; set; }
-
     }
 }

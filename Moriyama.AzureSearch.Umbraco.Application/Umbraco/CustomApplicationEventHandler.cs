@@ -14,9 +14,6 @@ namespace Moriyama.AzureSearch.Umbraco.Application.Umbraco
     {
         protected override void ApplicationStarted(UmbracoApplicationBase umbracoApplication, ApplicationContext applicationContext)
         {
-
-            
-
             Mapper.CreateMap<Field, SearchField>().ForMember(dest => dest.Type,
                opts => opts.MapFrom(
                    src => src.Type.ToString()
@@ -24,14 +21,105 @@ namespace Moriyama.AzureSearch.Umbraco.Application.Umbraco
 
             Mapper.CreateMap<Index, SearchIndex>();
 
+            var appRoot = HttpContext.Current.Server.MapPath("/");
+            AzureSearchContext.Instance.SearchClient = new AzureSearchClient(appRoot);
+            AzureSearchContext.Instance.SearchIndexClient = new AzureSearchIndexClient(appRoot);
+
+            ContentService.Saved += ContentServiceSaved;
             ContentService.Published += ContentServicePublished;
+            ContentService.Trashed += ContentServiceTrashed;
+            ContentService.Deleted += ContentServiceDeleted;
+            ContentService.EmptiedRecycleBin += ContentServiceEmptiedRecycleBin;
+
             MediaService.Saved += MediaServiceSaved;
+            MediaService.Trashed += MediaServiceTrashed;
+            MediaService.Deleted += MediaServiceDeleted;
+
+            MemberService.Saved += MemberServiceSaved;
+            MemberService.Deleted += MemberServiceDeleted;
+        }
+
+        private void ContentServiceEmptiedRecycleBin(IContentService sender, RecycleBinEventArgs e)
+        {
+            var azureSearchServiceClient = AzureSearchContext.Instance.SearchIndexClient;
+
+            foreach (var id in e.Ids)
+            {
+                azureSearchServiceClient.Delete(id);
+            }
+        }
+
+        private void MediaServiceDeleted(IMediaService sender, DeleteEventArgs<IMedia> e)
+        {
+            var azureSearchServiceClient = AzureSearchContext.Instance.SearchIndexClient;
+
+            foreach (var entity in e.DeletedEntities)
+            {
+                azureSearchServiceClient.Delete(entity.Id);
+            }
+        }
+
+        private void ContentServiceDeleted(IContentService sender, DeleteEventArgs<IContent> e)
+        {
+            var azureSearchServiceClient = AzureSearchContext.Instance.SearchIndexClient;
+
+            foreach (var entity in e.DeletedEntities)
+            {
+                azureSearchServiceClient.Delete(entity.Id);
+            }
+        }
+
+        private void ContentServiceSaved(IContentService sender, SaveEventArgs<IContent> e)
+        {
+            var azureSearchServiceClient = AzureSearchContext.Instance.SearchIndexClient;
+
+            foreach (var entity in e.SavedEntities)
+            {
+                azureSearchServiceClient.ReIndexContent(entity);
+            }
+        }
+
+        private void MemberServiceDeleted(IMemberService sender, DeleteEventArgs<IMember> e)
+        {
+            var azureSearchServiceClient = AzureSearchContext.Instance.SearchIndexClient;
+
+            foreach (var entity in e.DeletedEntities)
+            {
+                azureSearchServiceClient.Delete(entity.Id);
+            }
+        }
+
+        private void ContentServiceTrashed(IContentService sender, MoveEventArgs<IContent> e)
+        {
+            var azureSearchServiceClient = AzureSearchContext.Instance.SearchIndexClient;
+            foreach (var item in e.MoveInfoCollection)
+            {
+                azureSearchServiceClient.ReIndexContent(item.Entity);
+            }
+        }
+
+        private void MediaServiceTrashed(IMediaService sender, MoveEventArgs<IMedia> e)
+        {
+            var azureSearchServiceClient = AzureSearchContext.Instance.SearchIndexClient;
+            foreach (var item in e.MoveInfoCollection)
+            {
+                azureSearchServiceClient.ReIndexContent(item.Entity);
+            }
+        }
+
+        private void MemberServiceSaved(IMemberService sender, SaveEventArgs<IMember> e)
+        {
+            var azureSearchServiceClient = AzureSearchContext.Instance.SearchIndexClient;
+            foreach (var entity in e.SavedEntities)
+            {
+                azureSearchServiceClient.ReIndexMember(entity);
+            }
         }
 
         private void MediaServiceSaved(IMediaService sender, SaveEventArgs<IMedia> e)
         {
-            var azureSearchServiceClient = new AzureSearchServiceClient(HttpContext.Current.Server.MapPath("/"));
-            foreach(var entity in e.SavedEntities)
+            var azureSearchServiceClient = AzureSearchContext.Instance.SearchIndexClient;
+            foreach (var entity in e.SavedEntities)
             {
                 azureSearchServiceClient.ReIndexContent(entity);
             }   
@@ -39,7 +127,7 @@ namespace Moriyama.AzureSearch.Umbraco.Application.Umbraco
 
         private void ContentServicePublished(IPublishingStrategy sender, PublishEventArgs<IContent> e)
         {
-            var azureSearchServiceClient = new AzureSearchServiceClient(HttpContext.Current.Server.MapPath("/"));
+            var azureSearchServiceClient = AzureSearchContext.Instance.SearchIndexClient;
             foreach (var entity in e.PublishedEntities)
             {
                 azureSearchServiceClient.ReIndexContent(entity);
